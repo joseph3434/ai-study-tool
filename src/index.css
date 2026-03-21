@@ -1,0 +1,102 @@
+@import '@fontsource-variable/inter';
+@import 'katex/dist/katex.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand-300: #beb5fb;
+  --color-brand-400: #9d8ff9;
+  --color-brand-500: #7c6af7;
+  --color-brand-600: #5b8af0;
+
+  --color-surface-0: #0d0d10;
+  --color-surface-1: #13131a;
+  --color-surface-2: #1c1c27;
+  --color-surface-3: #252535;
+  --color-surface-4: #2e2e42;
+
+  --color-text-primary: #f0eff8;
+  --color-text-secondary: #9090b0;
+  --color-text-muted: #5a5a78;
+
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  --gradient-brand: linear-gradient(135deg, #7c6af7 0%, #5b8af0 100%);
+  --gradient-popover: linear-gradient(135deg, #1c1c27 0%, #181824 100%);
+  --gradient-surface: linear-gradient(180deg, #13131a 0%, #0d0d10 100%);
+
+  --glow-brand: 0 0 20px rgba(124, 106, 247, 0.3);
+  --glow-subtle: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='light'] {
+  --color-surface-0: #f8f7ff;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f0eff8;
+  --color-surface-3: #e4e3f0;
+  --color-surface-4: #d8d7ea;
+
+  --color-text-primary: #1a1a2e;
+  --color-text-secondary: #5a5a78;
+  --color-text-muted: #9090b0;
+
+  --color-border: rgba(0, 0, 0, 0.07);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
+
+  --gradient-popover: linear-gradient(135deg, #f0eff8 0%, #ebe9f5 100%);
+  --gradient-surface: linear-gradient(180deg, #ffffff 0%, #f8f7ff 100%);
+
+  --glow-brand: 0 0 20px rgba(124, 106, 247, 0.2);
+  --glow-subtle: 0 4px 24px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--color-surface-0);
+  color: var(--color-text-primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-4);
+}
+
+/* KaTeX overrides */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 0;
+}
+
+/* Selection highlight color */
+::selection {
+  background: rgba(124, 106, 247, 0.3);
+}
