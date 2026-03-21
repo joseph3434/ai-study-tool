@@ -13,6 +13,23 @@ npm run preview   # Serve the production build locally
 
 There are no tests. TypeScript strict mode (`noUnusedLocals`, `noUnusedParameters`) acts as the primary safety net — the build will fail on unused imports or variables.
 
+## Git Workflow
+
+After completing any meaningful unit of work — a new feature, a bug fix, a refactor, a config change — commit and push immediately. Never leave work uncommitted at the end of a session.
+
+```bash
+git add <specific files>
+git commit -m "short description of what changed and why"
+git push
+```
+
+Commit message format: present-tense imperative, lowercase, no period. Examples:
+- `fix popover position clamping on narrow viewports`
+- `add copy-to-clipboard button on assistant messages`
+- `refactor sub-window depth logic into treeUtils`
+
+The remote is `origin` on GitHub (`joseph3434/ai-study-tool`). Always push to `master`.
+
 ## Environment
 
 Requires `VITE_ANTHROPIC_API_KEY` in a `.env` file (never committed). The Anthropic SDK is initialized in `src/api/client.ts` with `dangerouslyAllowBrowser: true` — this is intentional for the dev/local use case.
