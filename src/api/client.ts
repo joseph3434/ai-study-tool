@@ -11,20 +11,34 @@ export async function* streamMessage(
   systemPrompt: string,
   signal?: AbortSignal
 ): AsyncGenerator<string> {
-  const stream = client.messages.stream({
-    model: 'claude-opus-4-6',
-    max_tokens: 2048,
-    system: systemPrompt,
-    messages,
-  });
+  try {
+    const stream = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      // Pass system as a cached block so the large curriculum prompt is only
+      // billed at full price once per 5-minute window, then cached (~10x cheaper).
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages,
+      stream: true,
+    });
 
-  for await (const event of stream) {
-    if (signal?.aborted) break;
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta'
-    ) {
-      yield event.delta.text;
+    for await (const event of stream) {
+      if (signal?.aborted) break;
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        yield event.delta.text;
+      }
     }
+  } catch (err) {
+    console.error('Anthropic API error:', err);
+    throw err;
   }
 }
