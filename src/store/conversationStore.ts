@@ -4,11 +4,13 @@ import { streamMessage } from '../api/client';
 import { MAIN_SYSTEM_PROMPT, buildSubWindowSystemPrompt } from '../api/prompts';
 import type { ConversationTree, HighlightOrigin, Message } from '../types/conversation';
 import { buildSubWindowMessages } from '../utils/treeUtils';
+import { useSessionStore, makeInitialTree } from './sessionStore';
 
 interface ConversationStore {
   tree: ConversationTree;
   isMainStreaming: boolean;
 
+  loadTree: (tree: ConversationTree) => void;
   sendMainMessage: (content: string) => Promise<void>;
   sendSubMessage: (conversationId: string, content: string) => Promise<void>;
   createSubConversation: (origin: HighlightOrigin, initialAnswer: string) => string;
@@ -20,26 +22,18 @@ interface ConversationStore {
   addMessage: (conversationId: string, message: Omit<Message, 'timestamp'>) => void;
 }
 
-const ROOT_ID = 'root';
-
-const initialTree: ConversationTree = {
-  rootId: ROOT_ID,
-  conversations: {
-    [ROOT_ID]: {
-      id: ROOT_ID,
-      parentConversationId: null,
-      parentMessageId: null,
-      origin: null,
-      messages: [],
-      depth: 0,
-    },
-  },
-  activeSubWindowIds: [],
-};
+function getStartingTree(): ConversationTree {
+  const session = useSessionStore.getState().getCurrentSession();
+  return session?.tree ?? makeInitialTree();
+}
 
 export const useConversationStore = create<ConversationStore>((set, get) => ({
-  tree: initialTree,
+  tree: getStartingTree(),
   isMainStreaming: false,
+
+  loadTree: (tree) => {
+    set({ tree });
+  },
 
   addMessage: (conversationId, message) => {
     set((state) => {
@@ -87,36 +81,48 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     set((state) => {
       const conv = state.tree.conversations[conversationId];
       if (!conv) return state;
-      return {
-        tree: {
-          ...state.tree,
-          conversations: {
-            ...state.tree.conversations,
-            [conversationId]: {
-              ...conv,
-              messages: conv.messages.map((m) =>
-                m.id === messageId
-                  ? { ...m, content: m.streamingContent ?? '', streamingContent: undefined, isStreaming: false }
-                  : m
-              ),
-            },
+      const newTree = {
+        ...state.tree,
+        conversations: {
+          ...state.tree.conversations,
+          [conversationId]: {
+            ...conv,
+            messages: conv.messages.map((m) =>
+              m.id === messageId
+                ? {
+                    ...m,
+                    content: m.streamingContent ?? '',
+                    streamingContent: undefined,
+                    isStreaming: false,
+                  }
+                : m
+            ),
           },
         },
       };
+      // Auto-save to session store after each finalized message
+      useSessionStore.getState().saveSession(newTree);
+      return { tree: newTree };
     });
   },
 
   sendMainMessage: async (content) => {
     const { tree, addMessage, appendStreamChunk, finalizeMessage } = get();
-    const rootConv = tree.conversations[ROOT_ID];
+    const rootId = tree.rootId;
+    const rootConv = tree.conversations[rootId];
+
+    // Auto-name the session from the first user message
+    if (rootConv.messages.length === 0) {
+      useSessionStore.getState().autoNameSession(content);
+    }
 
     // Add user message
     const userMsgId = nanoid();
-    addMessage(ROOT_ID, { id: userMsgId, role: 'user', content, isStreaming: false });
+    addMessage(rootId, { id: userMsgId, role: 'user', content, isStreaming: false });
 
     // Add placeholder assistant message
     const assistantMsgId = nanoid();
-    addMessage(ROOT_ID, { id: assistantMsgId, role: 'assistant', content: '', isStreaming: true });
+    addMessage(rootId, { id: assistantMsgId, role: 'assistant', content: '', isStreaming: true });
 
     set({ isMainStreaming: true });
 
@@ -127,19 +133,19 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       ];
 
       for await (const chunk of streamMessage(messages, MAIN_SYSTEM_PROMPT)) {
-        appendStreamChunk(ROOT_ID, assistantMsgId, chunk);
+        appendStreamChunk(rootId, assistantMsgId, chunk);
       }
-      finalizeMessage(ROOT_ID, assistantMsgId);
-    } catch (err) {
-      finalizeMessage(ROOT_ID, assistantMsgId);
+      finalizeMessage(rootId, assistantMsgId);
+    } catch (_err) {
+      finalizeMessage(rootId, assistantMsgId);
     } finally {
       set({ isMainStreaming: false });
     }
   },
 
   sendSubMessage: async (conversationId, content) => {
-    const { tree, addMessage, appendStreamChunk, finalizeMessage } = get();
-    const conv = tree.conversations[conversationId];
+    const { addMessage, appendStreamChunk, finalizeMessage } = get();
+    const conv = get().tree.conversations[conversationId];
     if (!conv || !conv.origin) return;
 
     const userMsgId = nanoid();
@@ -158,7 +164,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         appendStreamChunk(conversationId, assistantMsgId, chunk);
       }
       finalizeMessage(conversationId, assistantMsgId);
-    } catch (err) {
+    } catch (_err) {
       finalizeMessage(conversationId, assistantMsgId);
     }
   },
@@ -201,7 +207,6 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       const conv = state.tree.conversations[conversationId];
       if (!conv) return state;
 
-      // Close any sub-windows at same or deeper depth first
       const filtered = state.tree.activeSubWindowIds.filter((id) => {
         const c = state.tree.conversations[id];
         return c && c.depth < conv.depth;
@@ -221,7 +226,6 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       const conv = state.tree.conversations[conversationId];
       if (!conv) return state;
 
-      // Remove this conv and all deeper ones
       const filtered = state.tree.activeSubWindowIds.filter((id) => {
         const c = state.tree.conversations[id];
         return c && c.depth < conv.depth;

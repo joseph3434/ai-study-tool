@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { MainPanel } from './MainPanel';
 import { SubWindowStack } from './SubWindowStack';
+import { Sidebar } from './Sidebar';
 import { SelectionActionButton } from '../selection/SelectionActionButton';
 import { HighlightPopover } from '../selection/HighlightPopover';
 import { useUIStore } from '../../store/uiStore';
@@ -19,6 +20,7 @@ export function AppShell() {
       className="flex h-screen w-screen overflow-hidden"
       style={{ background: 'var(--color-surface-0)' }}
     >
+      <Sidebar />
       <MainPanel />
       <SubWindowStack />
       <SelectionActionButton />
